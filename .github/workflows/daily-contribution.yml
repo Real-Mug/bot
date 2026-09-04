@@ -17,8 +17,8 @@ jobs:
   daily-maintenance:
     runs-on: ubuntu-latest
     env:
-      GITHUB_USERNAME: ${{ vars.GITHUB_USERNAME }}
-      GITHUB_COMMIT_EMAIL: ${{ vars.GITHUB_COMMIT_EMAIL }}
+      COMMIT_AUTHOR_NAME: ${{ vars.COMMIT_AUTHOR_NAME }}
+      COMMIT_AUTHOR_EMAIL: ${{ vars.COMMIT_AUTHOR_EMAIL }}
       NOTIFICATION_PROVIDER: ${{ vars.NOTIFICATION_PROVIDER || 'none' }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -34,8 +34,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -z "${GITHUB_USERNAME:-}" || -z "${GITHUB_COMMIT_EMAIL:-}" ]]; then
-            echo '::error::Set the GITHUB_USERNAME and GITHUB_COMMIT_EMAIL repository variables.'
+          if [[ -z "${COMMIT_AUTHOR_NAME:-}" || -z "${COMMIT_AUTHOR_EMAIL:-}" ]]; then
+            echo '::error::Set the COMMIT_AUTHOR_NAME and COMMIT_AUTHOR_EMAIL repository variables.'
             exit 1
           fi
           case "${NOTIFICATION_PROVIDER}" in
@@ -56,8 +56,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          git config user.name "$GITHUB_USERNAME"
-          git config user.email "$GITHUB_COMMIT_EMAIL"
+          git config user.name "$COMMIT_AUTHOR_NAME"
+          git config user.email "$COMMIT_AUTHOR_EMAIL"
 
       - name: Commit and push update
         id: commit

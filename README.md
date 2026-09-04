@@ -29,8 +29,8 @@ Set these in **Settings > Secrets and variables > Actions > Variables**:
 
 | Name | Value |
 | --- | --- |
-| `GITHUB_USERNAME` | Your GitHub account name, used as the commit author name. |
-| `GITHUB_COMMIT_EMAIL` | An email verified on your GitHub account, or your GitHub-provided noreply email. Do not invent one. |
+| `COMMIT_AUTHOR_NAME` | Your GitHub account name, used as the commit author name. |
+| `COMMIT_AUTHOR_EMAIL` | An email verified on your GitHub account, or your GitHub-provided noreply email. Do not invent one. |
 | `NOTIFICATION_PROVIDER` | `none`, `discord`, or `telegram`. Use `none` to disable external notifications. |
 
 The workflow's `GITHUB_TOKEN` is short-lived and supplied by GitHub Actions. It is not necessary to create or store a personal access token for this repository.
