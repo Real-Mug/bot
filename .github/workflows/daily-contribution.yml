@@ -1,0 +1,88 @@
+name: Daily repository maintenance
+
+on:
+  schedule:
+    # 09:00 Asia/Karachi (UTC+5) = 04:00 UTC.
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-contribution-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  daily-maintenance:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_USERNAME: ${{ vars.GITHUB_USERNAME }}
+      GITHUB_COMMIT_EMAIL: ${{ vars.GITHUB_COMMIT_EMAIL }}
+      NOTIFICATION_PROVIDER: ${{ vars.NOTIFICATION_PROVIDER || 'none' }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Validate configuration
+        id: validate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "${GITHUB_USERNAME:-}" || -z "${GITHUB_COMMIT_EMAIL:-}" ]]; then
+            echo '::error::Set the GITHUB_USERNAME and GITHUB_COMMIT_EMAIL repository variables.'
+            exit 1
+          fi
+          case "${NOTIFICATION_PROVIDER}" in
+            none|discord|telegram) ;;
+            *)
+              echo '::error::NOTIFICATION_PROVIDER must be none, discord, or telegram.'
+              exit 1
+              ;;
+          esac
+
+      - name: Update daily activity log
+        id: daily_update
+        shell: bash
+        run: python3 scripts/daily_update.py daily-activity.md
+
+      - name: Configure Git identity
+        if: steps.daily_update.outputs.updated == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "$GITHUB_USERNAME"
+          git config user.email "$GITHUB_COMMIT_EMAIL"
+
+      - name: Commit and push update
+        id: commit
+        if: steps.daily_update.outputs.updated == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git diff --check
+          git add daily-activity.md
+          git commit -m "chore: daily repository maintenance - ${{ steps.daily_update.outputs.date }}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Notify success
+        if: success()
+        env:
+          COMMIT: ${{ steps.commit.outputs.commit || 'no new commit (already completed)' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: bash scripts/notify.sh success
+
+      - name: Notify failure
+        if: failure()
+        env:
+          FAILED_STEP: ${{ steps.checkout.outcome == 'failure' && 'Check out repository' || steps.validate.outcome == 'failure' && 'Validate configuration' || steps.daily_update.outcome == 'failure' && 'Update daily activity log' || steps.commit.outcome == 'failure' && 'Commit and push update' || 'A workflow step' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: bash scripts/notify.sh failure
